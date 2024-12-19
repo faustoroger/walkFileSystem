@@ -1,46 +1,36 @@
 package main
 
 import (
-	"bytes"
+	"os"
 	"testing"
 )
 
-func TestRun(t *testing.T) {
+func TestFilterOut(t *testing.T) {
 	testCases := []struct {
 		name     string
-		root     string
-		cfg      config
-		expected string
+		file     string
+		ext      string
+		minSize  int64
+		expected bool
 	}{
-		{name: "NoFilter", root: "testdata",
-			cfg:      config{ext: "", size: 0, list: true},
-			expected: "testdata/dir.log\ntestdata/dir2/script.sh\n"},
-		{name: "FilterExtensionMatch", root: "testdata",
-			cfg:      config{ext: ".log", size: 0, list: true},
-			expected: "testdata/dir.log\n"},
-		{name: "FilterExtensionSizeMatch", root: "testdata",
-			cfg:      config{ext: ".log", size: 10, list: true},
-			expected: "testdata/dir.log\n"},
-		{name: "FilterExtensionSizeNoMatch", root: "testdata",
-			cfg:      config{ext: ".log", size: 20, list: true},
-			expected: ""},
-		{name: "FilterExtensionNoMatch", root: "testdata",
-			cfg:      config{ext: ".gz", size: 0, list: true},
-			expected: ""},
+		{"FilterNoExtension", "testdata/dir.log", "", 0, false},
+		{"FilterExtensionMatch", "testdata/dir.log", ".log", 0, false},
+		{"FilterExtensionNoMatch", "testdata/dir.log", ".sh", 0, true},
+		{"FilterExtensionSizeMatch", "testdata/dir.log", ".log", 10, false},
+		{"FilterExtensionSizeNoMatch", "testdata/dir.log", ".log", 20, true},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			var buffer bytes.Buffer
-
-			if err := run(tc.root, &buffer, tc.cfg); err != nil {
+			info, err := os.Stat(tc.file)
+			if err != nil {
 				t.Fatal(err)
 			}
 
-			res := buffer.String()
+			f := filterOut(tc.file, tc.ext, tc.minSize, info)
 
-			if tc.expected != res {
-				t.Errorf("Expected %q, got %q instead\n", tc.expected, res)
+			if f != tc.expected {
+				t.Errorf("Expected '%t', got '%t' instead\n", tc.expected, f)
 			}
 		})
 	}
