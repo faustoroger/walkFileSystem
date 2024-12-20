@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -77,7 +76,12 @@ func TestRunDelExtension(t *testing.T) {
 	// Execute RunDel test cases
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			var buffer bytes.Buffer
+			var (
+				buffer    bytes.Buffer
+				logBuffer bytes.Buffer
+			)
+
+			tc.cfg.wLog = &logBuffer
 
 			tempDir, cleanup := createTempDir(t, map[string]int{
 				tc.cfg.ext:     tc.nDelete,
@@ -95,7 +99,7 @@ func TestRunDelExtension(t *testing.T) {
 				t.Errorf("Expected %q, got %q instead\n", tc.expected, res)
 			}
 
-			filesLeft, err := ioutil.ReadDir(tempDir)
+			filesLeft, err := os.ReadDir(tempDir)
 			if err != nil {
 				t.Error(err)
 			}
@@ -103,6 +107,13 @@ func TestRunDelExtension(t *testing.T) {
 			if len(filesLeft) != tc.nNoDelete {
 				t.Errorf("Expected %d files left, got %d instead\n",
 					tc.nNoDelete, len(filesLeft))
+			}
+
+			expLogLines := tc.nDelete + 1
+			lines := bytes.Split(logBuffer.Bytes(), []byte("\n"))
+			if len(lines) != expLogLines {
+				t.Errorf("Expected %d log lines, got %d instead\n",
+					expLogLines, len(lines))
 			}
 		})
 	}
@@ -112,7 +123,7 @@ func createTempDir(t *testing.T,
 	files map[string]int) (dirname string, cleanup func()) {
 	t.Helper()
 
-	tempDir, err := ioutil.TempDir("", "walktest")
+	tempDir, err := os.MkdirTemp("", "walktest")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +132,7 @@ func createTempDir(t *testing.T,
 		for j := 1; j <= n; j++ {
 			fname := fmt.Sprintf("file%d%s", j, k)
 			fpath := filepath.Join(tempDir, fname)
-			if err := ioutil.WriteFile(fpath, []byte("dummy"), 0644); err != nil {
+			if err := os.WriteFile(fpath, []byte("dummy"), 0644); err != nil {
 				t.Fatal(err)
 			}
 		}
